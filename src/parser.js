@@ -1,27 +1,31 @@
-export default (content) => {
+const parseFeed = (parsedResponse) => {
+  const title = parsedResponse.querySelector('title').textContent;
+  const description = parsedResponse.querySelector('description').textContent;
+  return { title, description };
+};
+
+const parsePosts = (parsedResponse) => {
+  const parsedPosts = parsedResponse.querySelectorAll('item');
+  const posts = [];
+
+  parsedPosts.forEach((parsedPost) => {
+    const post = {
+      URL: parsedPost.querySelector('link').textContent,
+      title: parsedPost.querySelector('title').textContent,
+      description: parsedPost.querySelector('description').textContent,
+    };
+    posts.push(post);
+  });
+
+  return posts;
+};
+
+export default (response) => {
   const parser = new DOMParser();
-  const xmlData = parser.parseFromString(content, 'application/xml');
+  const parsedResponse = parser.parseFromString(response.data.contents, 'text/xml');
 
-  if (xmlData.querySelectorAll('parseerror').length > 0) {
-    const error = new Error('Error parsing XML');
-    error.isParsingError = true;
-    throw error;
-  }
+  const parsedFeed = parseFeed(parsedResponse);
+  const parsedPosts = parsePosts(parsedResponse);
 
-  const title = xmlData.querySelector('title').textContent;
-  const description = xmlData.querySelector('description').textContent;
-  const link = xmlData.querySelector('link').textContent;
-  const posts = Array.from(xmlData.querySelectorAll('item'))
-    .map((post) => ({
-      title: post.querySelector('title').textContent,
-      link: post.querySelector('link').textContent,
-      description: post.querySelector('description').textContent,
-    }));
-
-  return {
-    link,
-    title,
-    description,
-    posts,
-  };
+  return { parsedFeed, parsedPosts };
 };

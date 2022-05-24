@@ -7,6 +7,7 @@ export default {
         duplication: 'RSS уже существует',
       },
       processState: {
+        loading: 'Скачивание ленты...',
         notValid: 'Ресурс не содержит валидный RSS',
         networkError: 'Ошибка сети',
         success: 'RSS успешно загружен',

@@ -11,7 +11,7 @@ export default (field, urls) => {
     },
   });
 
-  const schema = yup.string().required().url.notOneOf(urls);
+  const schema = yup.string().required().url().notOneOf(urls);
 
   const errors = schema
     .validate(field)

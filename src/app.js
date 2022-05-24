@@ -1,140 +1,124 @@
-import * as yup from 'yup';
 import axios from 'axios';
 import _ from 'lodash';
-import watch from './view.js';
+import validate from './validate.js';
+import { createWatchedState, handleProcessState } from './render.js';
 import parse from './parser.js';
 
 export default (i18n) => {
+  const elements = {
+    form: document.querySelector('form'),
+    RSSinput: document.getElementById('url-input'),
+    submitBtn: document.querySelector('button[type = "submit"]'),
+    feedbackEl: document.querySelector('p.feedback'),
+    RSSfeedsEl: document.querySelector('div.feeds'),
+    RSSpostsEl: document.querySelector('div.posts'),
+  };
+
   const state = {
     form: {
-      processState: 'filling',
-      field: {
-        input: '',
+      validation: {
+        error: '',
       },
-      valid: false,
-      error: null,
+      process: {
+        state: '',
+        error: '',
+      },
     },
-    feeds: [],
-    posts: [],
-    modalWindowPostId: null,
-    watchedPosts: new Set(),
-  };
-
-  yup.setLocale({
-    string: {
-      required: 'feedback.fieldRequired',
-      url: 'feedback.urlNotValid',
+    loadedRSSfeeds: {
+      feeds: [], // { id: uniqueId(), URL: '', title: '', description: '' }
+      posts: [], // { feedId: '', URL: '', title: '', description: '' }
     },
-  });
-  const initializeSchema = (feedLinks) => {
-    const initializedSchema = yup.object().shape({
-      input: yup.string().required().url().notOneOf(feedLinks, 'feedback.alreadyExists'),
-    });
-    return initializedSchema;
+    UIstate: {
+      readedPostsURLs: [],
+    },
   };
 
-  const validate = (fields, schema) => {
-    try {
-      schema.validateSync(fields, { abortEarly: false });
-      return null;
-    } catch (e) {
-      return e.message;
-    }
-  };
-  const proxifyUrl = (url) => new URL(`https://hexlet-allorigins.herokuapp.com/get?disableCache=true&url=${url}`);
+  const watchedState = createWatchedState(state, elements, i18n);
 
-  const form = document.querySelector('form');
-  const formField = document.querySelector('.form-control');
-
-  const submitButton = document.querySelector('[type="submit"]');
-  const modalForm = document.querySelector('#modal');
-
-  const watchedState = watch(state, i18n, formField, submitButton, modalForm);
-
-  const updateValidationState = (schema) => {
-    const error = validate(watchedState.form.field, schema);
-    if (error) {
-      watchedState.form.error = error;
-      watchedState.form.valid = false;
-    } else {
-      watchedState.form.error = null;
-      watchedState.form.valid = true;
-    }
-  };
-
-  const addIds = (posts, feedId) => {
-    posts.forEach((post) => {
-      post.feedId = feedId;
-      post.id = _.uniqueId();
-    });
-  };
-
-  const checkFeedsForUpdates = () => {
-    const { feeds } = state;
-    const promises = feeds.map((feed) => {
-      const feedId = feed.id;
-      const feedLink = proxifyUrl(feed.link);
-      return axios.get(feedLink)
-        .then((response) => {
-          const content = response.data.contents;
-          const feedData = parse(content);
-          const updatedPosts = feedData.posts;
-          const currentPosts = state.posts.filter((post) => post.feedId === feedId);
-          const newPosts = _.differenceBy(updatedPosts, currentPosts, 'title');
-          addIds(newPosts, feedId);
-          if (newPosts.length > 0) {
-            watchedState.posts = _.concat(newPosts, watchedState.posts);
-          }
-        });
-    });
-    const promise = Promise.all(promises);
-    return promise.finally(() => setTimeout(checkFeedsForUpdates, 5000));
-  };
-
-  form.addEventListener('submit', (e) => {
+  elements.form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const input = formData.get('url');
-    watchedState.form.field.input = input;
-    const feedLinks = state.feeds.map((feed) => feed.link);
-    const schema = initializeSchema(feedLinks);
-    updateValidationState(schema);
-    if (watchedState.form.valid) {
-      watchedState.form.processState = 'sending';
-      const url = proxifyUrl(input);
-      axios.get(url)
-        .then((response) => {
-          const content = response.data.contents;
-          const feedData = parse(content);
-          const feedLink = watchedState.form.field.input;
-          const { title } = feedData;
-          const { description } = feedData;
-          const newFeed = {
-            link: feedLink,
-            title,
-            description,
-            id: _.uniqueId(),
-          };
-          const feedId = newFeed.id;
-          watchedState.feeds = _.concat(newFeed, watchedState.feeds);
-          const newPosts = feedData.posts;
-          addIds(newPosts, feedId);
-          watchedState.posts = _.concat(newPosts, watchedState.posts);
-          watchedState.form.processState = 'finished';
-          form.reset();
-        })
-        .catch((err) => {
-          console.log(err);
-          if (err.isAxiosError) {
-            watchedState.form.error = 'feedback.networkError';
-          }
-          if (err.isParsingError) {
-            watchedState.form.error = 'feedback.rssParsingError';
-          }
-          watchedState.form.processState = 'failed';
-          watchedState.form.valid = false;
-        });
-    }
-    checkFeedsForUpdates();
+    const data = new FormData(e.target);
+    const enteredURL = data.get('url');
+
+    const loadedFeedsUrls = watchedState.loadedRSSfeeds.feeds.map((feed) => feed.URL);
+
+    const errors = validate(enteredURL, loadedFeedsUrls);
+    errors
+      .then((errs) => {
+        watchedState.form.validation.error = errs.join(', ');
+      })
+
+      .then(() => {
+        if (watchedState.form.validation.error.length === 0) {
+          watchedState.form.process.state = 'loading';
+          watchedState.form.process.error = '';
+
+          axios.get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(enteredURL)}`)
+
+            .then((response) => {
+              const { parsedFeed, parsedPosts } = parse(response);
+
+              const feed = {
+                id: _.uniqueId(),
+                URL: enteredURL,
+                title: parsedFeed.title,
+                description: parsedFeed.description,
+              };
+              watchedState.loadedRSSfeeds.feeds.push(feed);
+
+              parsedPosts.forEach((parsedPost) => {
+                const post = {
+                  feedId: feed.id,
+                  URL: parsedPost.URL,
+                  title: parsedPost.title,
+                  description: parsedPost.description,
+                };
+                watchedState.loadedRSSfeeds.posts.push(post);
+              });
+              watchedState.form.process.state = 'loaded';
+
+              setTimeout(function updatePosts() {
+                const feedsURLs = _.map(watchedState.loadedRSSfeeds.feeds, 'URL');
+
+                feedsURLs.forEach((feedURL) => {
+                  axios.get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(feedURL)}`)
+
+                    .then((responseTimer) => {
+                      const parsedPostsTimer = parse(responseTimer).parsedPosts;
+
+                      parsedPostsTimer.forEach((parsedPostTimer) => {
+                        const newParsedPostURL = parsedPostTimer.URL;
+
+                        if (_.find(watchedState.loadedRSSfeeds.posts, ['URL', newParsedPostURL])) {
+                          return;
+                        }
+
+                        const newPost = {
+                          feedId: feed.id,
+                          URL: newParsedPostURL,
+                          title: parsedPostTimer.title,
+                          description: parsedPostTimer.description,
+                        };
+
+                        watchedState.loadedRSSfeeds.posts.push(newPost);
+                        handleProcessState(elements, watchedState, i18n);
+                      });
+                    });
+                });
+
+                setTimeout(updatePosts, 5000);
+              }, 5000);
+            })
+
+            .catch((error) => {
+              if (error.response || error.request) {
+                watchedState.form.process.error = 'feedbackMsg.processState.networkError';
+              } else {
+                watchedState.form.process.error = 'feedbackMsg.processState.notValid';
+              }
+              watchedState.form.process.state = 'failed';
+            });
+        }
+      });
   });
 };

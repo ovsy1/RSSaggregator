@@ -1,6 +1,7 @@
 # RSS aggregator
 [![Actions Status](https://github.com/ovsy1/frontend-project-lvl3/workflows/hexlet-check/badge.svg)](https://github.com/ovsy1/frontend-project-lvl3/actions)
 [![Eslinter tests](https://github.com/ovsy1/frontend-project-lvl3/workflows/checkLinter/badge.svg)](https://github.com/ovsy1/frontend-project-lvl3/actions)
+[![Maintainability](https://api.codeclimate.com/v1/badges/2d1d79582989f222e470/maintainability)](https://codeclimate.com/github/ovsy1/frontend-project-lvl3/maintainability)
 
 
 ## About project

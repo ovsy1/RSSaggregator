@@ -1,5 +1,5 @@
-import axios from 'axios';
 import _ from 'lodash';
+import axios from 'axios';
 import validate from './validate.js';
 import { createWatchedState, handleProcessState } from './render.js';
 import parse from './parser.js';
@@ -39,7 +39,7 @@ export default (i18n) => {
     e.preventDefault();
     const data = new FormData(e.target);
     const enteredURL = data.get('url');
-
+    watchedState.form.process.state = 'loading';
     const loadedFeedsUrls = watchedState.loadedRSSfeeds.feeds.map((feed) => feed.URL);
 
     const currUrl = validate(enteredURL, loadedFeedsUrls);
@@ -49,7 +49,6 @@ export default (i18n) => {
       });
 
     if (watchedState.form.validation.error.length === 0) {
-      watchedState.form.process.state = 'loading';
       watchedState.form.process.error = '';
 
       axios.get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(enteredURL)}`)

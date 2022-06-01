@@ -42,83 +42,81 @@ export default (i18n) => {
 
     const loadedFeedsUrls = watchedState.loadedRSSfeeds.feeds.map((feed) => feed.URL);
 
-    const errors = validate(enteredURL, loadedFeedsUrls);
-    errors
-      .then((errs) => {
-        watchedState.form.validation.error = errs.join(', ');
-      })
-
-      .then(() => {
-        if (watchedState.form.validation.error.length === 0) {
-          watchedState.form.process.state = 'loading';
-          watchedState.form.process.error = '';
-
-          axios.get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(enteredURL)}`)
-
-            .then((response) => {
-              const { parsedFeed, parsedPosts } = parse(response);
-
-              const feed = {
-                id: _.uniqueId(),
-                URL: enteredURL,
-                title: parsedFeed.title,
-                description: parsedFeed.description,
-              };
-              watchedState.loadedRSSfeeds.feeds.push(feed);
-
-              parsedPosts.forEach((parsedPost) => {
-                const post = {
-                  feedId: feed.id,
-                  URL: parsedPost.URL,
-                  title: parsedPost.title,
-                  description: parsedPost.description,
-                };
-                watchedState.loadedRSSfeeds.posts.push(post);
-              });
-              watchedState.form.process.state = 'loaded';
-
-              setTimeout(function updatePosts() {
-                const feedsURLs = _.map(watchedState.loadedRSSfeeds.feeds, 'URL');
-
-                feedsURLs.forEach((feedURL) => {
-                  axios.get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(feedURL)}`)
-
-                    .then((responseTimer) => {
-                      const parsedPostsTimer = parse(responseTimer).parsedPosts;
-
-                      parsedPostsTimer.forEach((parsedPostTimer) => {
-                        const newParsedPostURL = parsedPostTimer.URL;
-
-                        if (_.find(watchedState.loadedRSSfeeds.posts, ['URL', newParsedPostURL])) {
-                          return;
-                        }
-
-                        const newPost = {
-                          feedId: feed.id,
-                          URL: newParsedPostURL,
-                          title: parsedPostTimer.title,
-                          description: parsedPostTimer.description,
-                        };
-
-                        watchedState.loadedRSSfeeds.posts.push(newPost);
-                        handleProcessState(elements, watchedState, i18n);
-                      });
-                    });
-                });
-
-                setTimeout(updatePosts, 5000);
-              }, 5000);
-            })
-
-            .catch((error) => {
-              if (error.response || error.request) {
-                watchedState.form.process.error = 'feedbackMsg.processState.networkError';
-              } else {
-                watchedState.form.process.error = 'feedbackMsg.processState.notValid';
-              }
-              watchedState.form.process.state = 'failed';
-            });
-        }
+    const currUrl = validate(enteredURL, loadedFeedsUrls);
+    currUrl
+      .then((url) => {
+        watchedState.form.validation.error = url.join(', ');
       });
+
+    if (watchedState.form.validation.error.length === 0) {
+      watchedState.form.process.state = 'loading';
+      watchedState.form.process.error = '';
+
+      axios.get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(enteredURL)}`)
+
+        .then((response) => {
+          const { parsedFeed, parsedPosts } = parse(response);
+
+          const feed = {
+            id: _.uniqueId(),
+            URL: enteredURL,
+            title: parsedFeed.title,
+            description: parsedFeed.description,
+          };
+          watchedState.loadedRSSfeeds.feeds.push(feed);
+
+          parsedPosts.forEach((parsedPost) => {
+            const post = {
+              feedId: feed.id,
+              URL: parsedPost.URL,
+              title: parsedPost.title,
+              description: parsedPost.description,
+            };
+            watchedState.loadedRSSfeeds.posts.push(post);
+          });
+          watchedState.form.process.state = 'loaded';
+
+          setTimeout(function updatePosts() {
+            const feedsURLs = _.map(watchedState.loadedRSSfeeds.feeds, 'URL');
+
+            feedsURLs.forEach((feedURL) => {
+              axios.get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(feedURL)}`)
+
+                .then((responseTimer) => {
+                  const parsedPostsTimer = parse(responseTimer).parsedPosts;
+
+                  parsedPostsTimer.forEach((parsedPostTimer) => {
+                    const newParsedPostURL = parsedPostTimer.URL;
+
+                    if (_.find(watchedState.loadedRSSfeeds.posts, ['URL', newParsedPostURL])) {
+                      return;
+                    }
+
+                    const newPost = {
+                      feedId: feed.id,
+                      URL: newParsedPostURL,
+                      title: parsedPostTimer.title,
+                      description: parsedPostTimer.description,
+                    };
+
+                    watchedState.loadedRSSfeeds.posts.push(newPost);
+                    handleProcessState(elements, watchedState, i18n);
+                  });
+                });
+            });
+
+            setTimeout(updatePosts, 5000);
+          }, 5000);
+        })
+
+        .catch((error) => {
+          if (error.response || error.request) {
+            watchedState.form.process.error = 'feedbackMsg.processState.networkError';
+          } else {
+            watchedState.form.process.error = 'feedbackMsg.processState.notValid';
+          }
+          watchedState.form.process.state = 'failed';
+        });
+    }
   });
 };

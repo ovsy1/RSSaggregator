@@ -1,168 +1,179 @@
-import onChange from 'on-change';
-
-const createRSSelementsContainer = (RSSEl, header) => {
-  const container = document.createElement('div');
-  container.classList.add('card', 'border-0');
-  const containerHeader = document.createElement('div');
-  containerHeader.classList.add('card-body');
-  const containerHeaderElement = document.createElement('h2');
-  containerHeaderElement.classList.add('card-title', 'h4');
-  containerHeaderElement.textContent = `${header}`;
-  const ulElement = document.createElement('ul');
-  ulElement.classList.add('list-group', 'border-0', 'rounded-0');
-
-  containerHeader.appendChild(containerHeaderElement);
-  container.appendChild(containerHeader);
-  container.append(ulElement);
-  RSSEl.appendChild(container);
-
-  return ulElement;
-};
-
-const showFeedsAndPosts = (feedsEl, postsEl, loadedFeeds, loadedPosts, readedPosts) => {
-  feedsEl.innerHTML = '';
-  postsEl.innerHTML = '';
-  const ulFeedsContainer = createRSSelementsContainer(feedsEl, 'Фиды');
-  const ulPostsContainer = createRSSelementsContainer(postsEl, 'Посты');
-
-  const feeds = loadedFeeds.map(({ title, description }) => {
-    const liEl = document.createElement('li');
-    liEl.classList.add('list-group-item', 'border-0', 'border-end-0');
-
-    const titleEl = document.createElement('h3');
-    titleEl.classList.add('h6', 'm-0');
-    titleEl.textContent = `${title}`;
-
-    const descriptionEl = document.createElement('p');
-    descriptionEl.classList.add('m-0', 'small', 'text-black-50');
-    descriptionEl.textContent = `${description}`;
-
-    liEl.append(titleEl);
-    liEl.append(descriptionEl);
-
-    return liEl;
-  });
-
-  ulFeedsContainer.prepend(...feeds);
-
-  const posts = loadedPosts.map(({ URL, title, description }) => {
-    const liEl = document.createElement('li');
-    liEl.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
-
-    const aEl = document.createElement('a');
-    aEl.classList.add('fw-bold');
-    aEl.href = `${URL}`;
-    aEl.setAttribute('target', '_blank');
-    aEl.setAttribute('rel', 'noopener noreferrer');
-    aEl.textContent = `${title}`;
-    aEl.addEventListener('click', () => {
-      if (!readedPosts.includes(aEl.href)) {
-        readedPosts.push(aEl.href);
-      }
-      aEl.classList.remove('fw-bold');
-      aEl.classList.add('fw-normal', 'link-secondary');
-    });
-
-    const btn = document.createElement('button');
-    btn.classList.add('btn', 'btn-outline-primary', 'btn-sm');
-    btn.setAttribute('data-id', '2');
-    btn.setAttribute('data-bs-toggle', 'modal');
-    btn.setAttribute('data-bs-target', '#modal');
-    btn.textContent = 'Просмотр';
-    btn.addEventListener('click', () => {
-      if (!readedPosts.includes(URL)) {
-        readedPosts.push(URL);
-      }
-      aEl.classList.remove('fw-bold');
-      aEl.classList.add('fw-normal', 'link-secondary');
-
-      const modalTitle = document.querySelector('h5.modal-title');
-      const modalBody = document.querySelector('div.modal-body');
-      const fullAtricleBtn = document.querySelector('a.full-article');
-
-      modalTitle.textContent = `${title}`;
-      modalBody.textContent = `${description}`;
-      fullAtricleBtn.href = `${URL}`;
-    });
-
-    liEl.append(aEl);
-    liEl.append(btn);
-
-    return liEl;
-  });
-
-  ulPostsContainer.prepend(...posts);
-};
-
-const renderErrors = (elements, watchedState, i18n) => {
-  const { form: { validation: { error } } } = watchedState;
-  elements.feedbackEl.classList.replace('text-success', 'text-danger');
-  elements.feedbackEl.textContent = i18n.t(`${error}`);
-  elements.RSSinput.classList.add('is-invalid');
-};
-
-const handleProcessState = (elements, watchedState, i18n) => {
-  const { form: { process: { state: processState } } } = watchedState;
+const processStateHandler = (processState, i18nInstance, elements) => {
   const {
-    RSSinput, submitBtn, feedbackEl, RSSfeedsEl, RSSpostsEl,
+    button, form, feedback, urlInput,
   } = elements;
-
-  const loadedFeeds = watchedState.loadedRSSfeeds.feeds;
-  const loadedPosts = watchedState.loadedRSSfeeds.posts;
-  const readedPosts = watchedState.UIstate.readedPostsURLs;
 
   switch (processState) {
     case 'loaded':
-      RSSinput.value = ''; // elements.form.reset();
-      RSSinput.focus();
-
-      RSSinput.readOnly = false;
-      submitBtn.disabled = false;
-      feedbackEl.classList.replace('text-info', 'text-success');
-      feedbackEl.textContent = i18n.t('feedbackMsg.processState.success');
-
-      showFeedsAndPosts(RSSfeedsEl, RSSpostsEl, loadedFeeds, loadedPosts, readedPosts);
+      button.disabled = false;
       break;
-
     case 'loading':
-      RSSinput.readOnly = true;
-      submitBtn.disabled = true;
-      RSSinput.classList.remove('is-invalid');
-      feedbackEl.classList.remove('text-danger', 'text-success');
-      feedbackEl.classList.add('text-info');
-      feedbackEl.textContent = i18n.t('feedbackMsg.processState.loading');
+      button.disabled = true;
+      urlInput.removeAttribute('readonly');
+      urlInput.focus();
       break;
-
+    case 'added':
+      button.disabled = false;
+      urlInput.removeAttribute('readonly');
+      urlInput.classList.remove('is-invalid');
+      feedback.classList.remove('text-danger');
+      feedback.classList.add('text-success');
+      feedback.textContent = i18nInstance.t('messages.successAddingRss');
+      form.reset();
+      elements.urlInput.focus();
+      break;
     case 'failed':
-      RSSinput.readOnly = false;
-      submitBtn.disabled = false;
-      feedbackEl.classList.replace('text-info', 'text-danger');
-      feedbackEl.textContent = i18n.t(watchedState.form.process.error);
-      RSSinput.classList.add('is-invalid');
+      button.disabled = false;
+      urlInput.removeAttribute('readonly');
       break;
-
     default:
-      throw new Error(`Unknown process state: ${processState}`);
+      throw new Error(`Wrong processState ${processState}`);
   }
 };
 
-const createWatchedState = (state, elements, i18n) => {
-  const watchedState = onChange(state, (path) => {
-    switch (path) {
-      case 'form.validation.error':
-        renderErrors(elements, watchedState, i18n);
-        break;
-
-      case 'form.process.state':
-        handleProcessState(elements, watchedState, i18n);
-        break;
-
-      default:
-        break;
-    }
-  });
-
-  return watchedState;
+const renderErrors = (error, i18nInstance, elements) => {
+  const { urlInput, feedback } = elements;
+  if (error !== '') {
+    urlInput.classList.add('is-invalid');
+    feedback.classList.remove('text-success');
+    feedback.classList.add('text-danger');
+    feedback.textContent = i18nInstance.t(`messages.${error}`);
+  }
 };
 
-export { createWatchedState, handleProcessState };
+const feedsRender = (feeds, i18nInstance, elements) => {
+  const feedsEl = elements.feeds;
+
+  feedsEl.innerHTML = '';
+  const feedsCard = document.createElement('div');
+  feedsCard.classList.add('card', 'border-0');
+  elements.feeds.prepend(feedsCard);
+
+  const titleDiv = document.createElement('div');
+  titleDiv.classList.add('card-body');
+  feedsCard.append(titleDiv);
+
+  const h2El = document.createElement('h2');
+  h2El.classList.add('card-title', 'h4');
+  h2El.textContent = i18nInstance.t('messages.feeds');
+  titleDiv.append(h2El);
+
+  const listUL = document.createElement('ul');
+  listUL.classList.add('list-group', 'border-0', 'rounded-0');
+
+  feeds.forEach((feed) => {
+    const liList = document.createElement('li');
+    liList.classList.add('list-group-item', 'border-0', 'border-end-0');
+
+    const h3El = document.createElement('h3');
+    h3El.classList.add('h6', 'm-0');
+    h3El.textContent = feed.feedTitle;
+    liList.append(h3El);
+
+    const p = document.createElement('p');
+    p.classList.add('m-0', 'small', 'text-black-50');
+    p.textContent = feed.feedDesc;
+    liList.append(p);
+
+    listUL.prepend(liList);
+  });
+  titleDiv.append(listUL);
+};
+
+const postsRender = (posts, state, i18nInstance, elements) => {
+  const postsEl = elements.posts;
+
+  postsEl.innerHTML = '';
+  const postsDiv = document.createElement('div');
+  postsDiv.classList.add('card', 'border-0');
+  elements.posts.prepend(postsDiv);
+
+  const divTitle = document.createElement('div');
+  divTitle.classList.add('card-body');
+  postsDiv.append(divTitle);
+
+  const h2El = document.createElement('h2');
+  h2El.classList.add('card-title', 'h4');
+  h2El.textContent = i18nInstance.t('messages.posts');
+  divTitle.prepend(h2El);
+
+  const ulList = document.createElement('ul');
+  ulList.classList.add('list-group', 'border-0', 'rounded-0');
+
+  posts.forEach((post) => {
+    const liList = document.createElement('li');
+    liList.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
+
+    const a = document.createElement('a');
+    if (state.readPostsId.includes(post.itemId)) {
+      a.classList.add('fw-normal', 'link-secondary');
+    } else {
+      a.classList.add('fw-bold');
+    }
+
+    a.href = post.itemLink;
+    a.textContent = post.itemTitle;
+    a.setAttribute('data-id', post.itemId);
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer');
+    liList.append(a);
+
+    const buttonEl = document.createElement('button');
+    buttonEl.setAttribute('type', 'button');
+    buttonEl.classList.add('btn', 'btn-outline-primary', 'btn-sm');
+    buttonEl.dataset.id = post.itemId;
+    buttonEl.dataset.bsToggle = 'modal';
+    buttonEl.dataset.bsTarget = '#modal';
+    buttonEl.textContent = i18nInstance.t('messages.view');
+    liList.append(buttonEl);
+    ulList.append(liList);
+  });
+  postsDiv.append(ulList);
+};
+
+const renderModal = (itemId, state, elements) => {
+  const openModal = state.posts.find((post) => post.itemId === itemId);
+
+  const title = elements.modal.modalTitle;
+  const body = elements.modal.modalBody;
+  const fullPost = elements.modal.readButton;
+
+  title.textContent = openModal.itemTitle;
+  body.textContent = openModal.itemDesc;
+  fullPost.href = openModal.itemLink;
+};
+
+const renderReadPostsId = (idList) => {
+  idList.forEach((id) => {
+    const post = document.querySelector(`a[data-id="${id}"]`);
+    post.classList.remove('fw-bold');
+    post.classList.add('fw-normal', 'link-secondary');
+  });
+};
+
+const render = (state, i18nInstance, elements) => (path, value) => {
+  switch (path) {
+    case 'form.processState':
+      processStateHandler(value, i18nInstance, elements);
+      break;
+    case 'form.errors':
+      renderErrors(value, i18nInstance, elements);
+      break;
+    case 'feeds':
+      feedsRender(value, i18nInstance, elements);
+      break;
+    case 'posts':
+      postsRender(value, state, i18nInstance, elements);
+      break;
+    case 'modalPostItemId':
+      renderModal(value, state, elements);
+      break;
+    case 'readPostsId':
+      renderReadPostsId(value);
+      break;
+    default:
+      throw new Error(`Wrong path: ${path}`);
+  }
+};
+
+export default render;

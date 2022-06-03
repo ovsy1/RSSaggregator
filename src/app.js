@@ -5,7 +5,7 @@ import axios from 'axios';
 import _ from 'lodash';
 import parse from './parser.js';
 import getProxyUrl from './proxyUrl.js';
-import render from './render';
+import render from './render.js';
 import ru from './locales/ru.js';
 
 const app = (i18nInstance) => {

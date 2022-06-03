@@ -11,7 +11,7 @@ import ru from './locales/ru.js';
 const app = (i18nInstance) => {
   const state = {
     form: {
-      processState: 'filling',
+      processState: 'loaded',
       errors: '',
     },
     feeds: [],
@@ -50,7 +50,7 @@ const app = (i18nInstance) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const url = formData.get('url');
-    watchedState.form.processState = 'pending';
+    watchedState.form.processState = 'loading';
 
     const validateUrl = yup
       .string()
@@ -68,11 +68,11 @@ const app = (i18nInstance) => {
           watchedState.form.processState = 'added';
         })
         .catch((err) => {
-          watchedState.form.processState = 'error';
+          watchedState.form.processState = 'failing';
           watchedState.form.errors = err.name;
         }))
       .catch((err) => {
-        watchedState.form.processState = 'error';
+        watchedState.form.processState = 'failing';
         watchedState.form.errors = err.errors;
       });
   });

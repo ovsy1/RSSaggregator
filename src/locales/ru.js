@@ -1,17 +1,15 @@
 export default {
   translation: {
-    feedbackMsg: {
-      validation: {
-        empty: 'Не должно быть пустым',
-        notValid: 'Ссылка должна быть валидным URL',
-        duplication: 'RSS уже существует',
-      },
-      processState: {
-        loading: 'Скачивание ленты...',
-        notValid: 'Ресурс не содержит валидный RSS',
-        networkError: 'Ошибка сети',
-        success: 'RSS успешно загружен',
-      },
+    messages: {
+      successAddingRss: 'RSS успешно загружен',
+      rssExistError: 'RSS уже существует',
+      notValidUrl: 'Ссылка должна быть валидным URL',
+      fieldRequired: 'Не должно быть пустым',
+      TypeError: 'Ресурс не содержит валидный RSS',
+      AxiosError: 'Ошибка сети',
+      feeds: 'Фиды',
+      posts: 'Посты',
+      view: 'Просмотр',
     },
   },
 };

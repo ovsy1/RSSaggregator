@@ -1,31 +1,32 @@
-const parseFeed = (parsedResponse) => {
-  const title = parsedResponse.querySelector('title').textContent;
-  const description = parsedResponse.querySelector('description').textContent;
-  return { title, description };
-};
-
-const parsePosts = (parsedResponse) => {
-  const parsedPosts = parsedResponse.querySelectorAll('item');
-  const posts = [];
-
-  parsedPosts.forEach((parsedPost) => {
-    const post = {
-      URL: parsedPost.querySelector('link').textContent,
-      title: parsedPost.querySelector('title').textContent,
-      description: parsedPost.querySelector('description').textContent,
-    };
-    posts.push(post);
-  });
-
-  return posts;
-};
-
-export default (response) => {
+const parse = (response, url) => {
   const parser = new DOMParser();
-  const parsedResponse = parser.parseFromString(response.data.contents, 'text/xml');
+  const data = parser.parseFromString(response.data.contents, 'application/xml');
+  const title = data.querySelector('title');
+  const description = data.querySelector('description');
+  const parserErr = data.querySelector('parsererror');
 
-  const parsedFeed = parseFeed(parsedResponse);
-  const parsedPosts = parsePosts(parsedResponse);
+  if (parserErr) {
+    throw new Error('TypeError').firstChild.textContent;
+  }
 
-  return { parsedFeed, parsedPosts };
+  const feed = {
+    url,
+    feedTitle: title.textContent,
+    feedDesc: description.textContent,
+  };
+
+  const items = data.querySelectorAll('item');
+  const posts = Array.from(items).map((item) => {
+    const itemTitle = item.querySelector('title');
+    const itemDesc = item.querySelector('description');
+    const itemLink = item.querySelector('link');
+    return {
+      itemTitle: itemTitle.textContent,
+      itemDesc: itemDesc.textContent,
+      itemLink: itemLink.textContent,
+    };
+  });
+  return { feed, posts };
 };
+
+export default parse;

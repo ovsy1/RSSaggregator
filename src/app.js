@@ -54,9 +54,9 @@ const app = (i18nInstance) => {
 
     const validateUrl = yup
       .string()
+      .required()
       .url()
-      .notOneOf(watchedState.feeds.map((feed) => feed.url))
-      .required();
+      .notOneOf(watchedState.feeds.map((feed) => feed.url));
 
     validateUrl.validate(url)
       .then(() => axios.get(getProxyUrl(url))

@@ -68,11 +68,11 @@ const app = (i18nInstance) => {
           watchedState.form.processState = 'added';
         })
         .catch((err) => {
-          watchedState.form.processState = 'failing';
+          watchedState.form.processState = 'error';
           watchedState.form.errors = err.name;
         }))
       .catch((err) => {
-        watchedState.form.processState = 'failing';
+        watchedState.form.processState = 'error';
         watchedState.form.errors = err.errors;
       });
   });

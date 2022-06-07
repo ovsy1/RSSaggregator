@@ -22,7 +22,7 @@ const processStateHandler = (processState, i18nInstance, elements) => {
       form.reset();
       elements.urlInput.focus();
       break;
-    case 'failed':
+    case 'error':
       button.disabled = false;
       urlInput.removeAttribute('readonly');
       break;
